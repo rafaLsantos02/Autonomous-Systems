@@ -47,8 +47,10 @@ landmarks = [(4,4),
 n_landmarks = len(landmarks)
 
 # ---> Noise parameters
-R = np.diag([0.002,0.002,0.0005]) # sigma_x, sigma_y, sigma_theta
+R = np.diag([0.002,0.002,0.002]) # sigma_x, sigma_y, sigma_theta
 Q = np.diag([0.003,0.005]) # sigma_r, sigma_phi
+
+
 O = np.array([0.001, 0.001, 0.001]) # sigma_odom_x, sigma_odom_y, sigma_odom_theta #DUVIDA
 
 # ---> EKF Estimation Variables
@@ -93,7 +95,7 @@ def sim_measurement(x,landmarks):
     return zs
 
 # ---> EKF SLAM steps
-def prediction_update(mu,sigma,odom_data,dt):
+def prediction_update(mu,sigma,odom,dt):
     '''
     This function performs the prediction step of the EKF. Using the linearized motion model, it
     updates both the state estimate mu and the state uncertainty sigma based on the model and known
@@ -108,13 +110,16 @@ def prediction_update(mu,sigma,odom_data,dt):
      - sigma: updated state uncertainty
     '''
     rx,py,theta = mu[0],mu[1],mu[2]
-    deltaD,deltaO = odom_data[0], odom_data[1]
+    deltaD,deltaO = odom[0], odom[1]
     # Update state estimate mu with model
     state_model_mat = np.zeros((n_state,1)) # Initialize state update matrix from model
     state_model_mat[0] = deltaD*np.cos(theta) # Update in the robot x position
     state_model_mat[1] = deltaD*np.sin(theta) # Update in the robot y position
     state_model_mat[2] = deltaO # Update for robot heading theta
     mu = mu + np.matmul(np.transpose(Fx),state_model_mat) # Update state estimate, simple use model with current state estimate
+    
+    mu[2] =np.arctan2(np.sin(mu[2]),np.cos(mu[2])) # Keep the angle between -pi and +pi
+
     # Update state uncertainty sigma
     state_jacobian = np.zeros((3,3)) # Initialize model jacobian
     state_jacobian[0,2] = -deltaD*np.sin(theta) # Jacobian element, how small changes in robot theta affect robot x
@@ -136,7 +141,7 @@ def measurement_update(mu,sigma,zs):
      - mu: updated state estimate
      - sigma: updated state uncertainty
     '''
-    rx,ry,theta = mu[0,0],mu[1,0],mu[2,0] # robot 
+    rx,ry,theta = mu[0, 0],mu[1, 0],mu[2, 0] # robot 
     delta_zs = [np.zeros((2,1)) for lidx in range(n_landmarks)] # A list of how far an actual measurement is from the estimate measurement
     Ks = [np.zeros((mu.shape[0],2)) for lidx in range(n_landmarks)] # A list of matrices stored for use outside the measurement for loop
     Hs = [np.zeros((2,mu.shape[0])) for lidx in range(n_landmarks)] # A list of matrices stored for use outside the measurement for loop
@@ -255,15 +260,12 @@ if __name__ == '__main__':
     x_init = np.array([1,1,np.pi/2]) # px, py, theta
     robot = vehicles.DifferentialDrive(x_init)
     dt = 0.01
-
+    i = 0
     # Initialize and display environment
     env = environment.Environment(map_image_path="./python_ugv_sim/maps/map_blank.png")
-
+    
     # Initialize robot state estimate and sigma
     mu[0:3] = np.expand_dims(x_init,axis=1)
-
-    # Initialize the robot odometry with the robot state pose
-    odom = mu[0:3] 
 
     sigma[0:3,0:3] = 0.1*np.eye(3)
     sigma[2,2] = 0 
@@ -276,29 +278,23 @@ if __name__ == '__main__':
             u = robot.update_u(u,event) if event.type==pygame.KEYUP or event.type==pygame.KEYDOWN else u # Update controls based on key states
 
         # Move the robot and give the real_movement, i.e, the movement did by the robot between two consevutive time intervals
-        real_movement = robot.move_step(u,dt) # Integrate EOMs forward, i.e., move robot
-
-        odom_data = generate_odometry_data(real_movement, mu[:3]) # Odom_data is a vector with the deltaD and deltaO 
-        
-        # Update odom if exists movement 
-        #if abs(odom_data[0]) > 0.01 or abs(odom_data[1]) > 0.01 or abs(odom_data[2]) > 0.01:
-        #    odom += odom_data
-        #    odom[2] = np.arctan2(np.sin(odom[2]),np.cos(odom[2])) # Keep the angle between -pi and +pi
+        odom = robot.move_step(u,dt) # Integrate EOMs forward, i.e., move robot
 
         # Get measurements
         zs = sim_measurement(robot.get_pose(),landmarks) # Simulate measurements between robot and landmarks
         # EKF Slam Logic
-        mu, sigma = prediction_update(mu,sigma,odom_data,dt) # Perform EKF prediction update
-        #mu, sigma = measurement_update(mu,sigma,zs) # Perform EKF measurement update
+        mu, sigma = prediction_update(mu,sigma,odom,dt) # Perform EKF prediction update
+        mu, sigma = measurement_update(mu,sigma,zs) # Perform EKF measurement update
         # Plotting
         env.show_map() # Re-blit map
         # Show measurements
-        #show_measurements(robot.get_pose(),zs,env)
+        show_measurements(robot.get_pose(),zs,env)
         # Show actual locations of robot and landmarks
         env.show_robot(robot) # Re-blit robot
-        #show_landmark_location(landmarks,env)
+        show_landmark_location(landmarks,env)
         # Show estimates of robot and landmarks (estimate and uncertainty)
         show_robot_estimate(mu,sigma,env)
-        #show_landmark_estimate(mu,sigma,env)
+        show_landmark_estimate(mu,sigma,env)
 
         pygame.display.update() # Update display
+        

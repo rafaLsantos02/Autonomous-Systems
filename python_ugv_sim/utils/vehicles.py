@@ -76,10 +76,14 @@ class DifferentialDrive(Robot):
         dtheta = self.x[2] - old_pose[2]
         dtheta = np.arctan2(np.sin(dtheta),np.cos(dtheta)) # Keep the angle between -pi and +pi
 
-        # Define the real_movement as a vector [dx, dy, dtheta]
-        real_movement = np.array([dx, dy, dtheta])
+        deltaD = np.linalg.norm([dx, dy]); # Calculate the deltaD, i.e, the distance cover by the robot between two consecutive time intervals
+        
+        deltaO = dtheta 
 
-        return real_movement
+        # Define the odom as a vector [deltaD, deltaO]
+        odom = np.array([deltaD, deltaO])
+        return odom
+    
     def EOM(self,t,y):
         px = y[0]; py = y[1]; theta = y[2]
         v = max(min(y[3],self.max_v),-self.max_v); omega = max(min(y[4],self.max_omega),-self.max_omega) # forward and angular velocity
@@ -90,13 +94,17 @@ class DifferentialDrive(Robot):
         ydot[3] = 0
         ydot[4] = 0
         return ydot
+    
     def set_state(self,x):
         self.x = x
         self.x[2] = np.arctan2(np.sin(x[2]),np.cos(x[2])) # Keep angle between -pi and +pi
+    
     def get_pose(self):
         return self.x
+    
     def get_position(self):
         return self.x[0:2]
+    
     def update_u(self,u,key_event):
         '''
         Update controls
@@ -109,7 +117,7 @@ class DifferentialDrive(Robot):
             if key_event.key==pygame.K_UP:
                 u[0] = self.max_v
             elif key_event.key==pygame.K_DOWN:
-                u[0] = -1*self.max_v
+                u[0] = 0
         if key_event.type==pygame.KEYUP:
             if key_event.key==pygame.K_LEFT:
                 u[1] = 0

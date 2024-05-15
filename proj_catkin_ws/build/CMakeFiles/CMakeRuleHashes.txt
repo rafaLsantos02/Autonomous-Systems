@@ -1,0 +1,4 @@
+# Hashes of file build rules.
+3ef854ee5e08725bc996ebce8c5a5482 /home/artur-ubunto/Desktop/proj_ws/devel/include/freenect_camera/FreenectConfig.h
+c24c6308d37365b676f16f59554582a9 CMakeFiles/clean_test_results
+9a79b1ac2e35643ef9d3f77b0f531006 freenect_stack/freenect_camera/CMakeFiles/freenect_camera_gencfg

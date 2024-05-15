@@ -1,0 +1,2 @@
+base_pkg:freenect_stack/freenect_camera:freenect_stack/freenect_launch:freenect_stack/freenect_stack
+-DCATKIN_DEVEL_PREFIX=/home/artur-ubunto/Desktop/proj_ws/devel -DCMAKE_INSTALL_PREFIX=/home/artur-ubunto/Desktop/proj_ws/install -G Unix Makefiles

@@ -1,0 +1,8 @@
+prefix=/home/artur-ubunto/Desktop/proj_ws/install
+
+Name: base_pkg
+Description: Description of base_pkg
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

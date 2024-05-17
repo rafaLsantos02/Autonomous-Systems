@@ -17,8 +17,13 @@ calib_data_path1 = r"/home/artur-ubunto/Desktop/SAut/arucos_tut/calib_data.npz"
 
 calib_data1 = np.load(calib_data_path1)
 
+print(calib_data1.files)
+
 cam_mat = calib_data1["camMatrix"]
 dist_coef = calib_data1["distCoef"]
+r_vectors = calib_data1["rVector"]
+t_vectors = calib_data1["tVector"]
+
 
 MARKER_SIZE = 17
 

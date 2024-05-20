@@ -37,10 +37,23 @@ MARKER_SIZE = 17
 marker_dict = aruco.Dictionary_get(aruco.DICT_5X5_50)
 param_markers = aruco.DetectorParameters_create()
 
-pose_list = []
+position_x_list = [0]
+position_y_list = [0]
+position_z_list = [0]
+orientation_x_list = [0]
+orientation_y_list = [0]
+orientation_z_list = [0]
+orientation_w_list = [0]
+
+ids_list = [0]
+distances_list = [0]
+angles_list = [0]
+marker_vecs_list = [0]
+
 
 def process_image(cv_image):
     global last_print_time
+
     gray_cv_image = cv.cvtColor(cv_image, cv.COLOR_BGR2GRAY)
     marker_corners, marker_IDs, reject = aruco.detectMarkers(
         gray_cv_image, marker_dict, parameters=param_markers
@@ -78,19 +91,12 @@ def process_image(cv_image):
                 tVec[i][0][2] ** 2 + tVec[i][0][0] ** 2 + tVec[i][0][1] ** 2
             )
 
-            #while not rospy.is_shutdown():
-            #    print(f"id: {ids[0]}      Dist: {round(distance, 2)}      Angle: {np.degrees(angle):.2f}")
-            #    print(f"Vec: {np.round(marker_vec[0])} {np.round(marker_vec[1])} {np.round(marker_vec[2])}")
-            #    print("---\n")
-
-            #    rospy.sleep(1)
-
-            # Only print the messages if its information is different than the previous
-            if time.time() - last_print_time >= 1:
-                last_print_time = time.time()
-                print(f"id: {ids[0]}      Dist: {round(distance, 2)}      Angle: {np.degrees(angle):.2f}")
-                print(f"Vec: {np.round(marker_vec[0])} {np.round(marker_vec[1])} {np.round(marker_vec[2])}")
-                print("---\n")
+                # Append data to lists
+            ids_list.append(ids[0])
+                #ids_list = ids[0]
+            distances_list.append(round(distance, 2))
+            angles_list.append(np.degrees(angle))
+            marker_vecs_list.append(np.round(marker_vec, decimals=2))
 
             # for pose of the marker
             cv.putText(
@@ -117,60 +123,44 @@ def process_image(cv_image):
     cv.imshow("cv_image", cv_image)
     cv.waitKey(1)
 
+    return ids_list, distances_list, angles_list, marker_vecs_list
+
 def image_callback(data):
+    global ids_list, distances_list, angles_list, marker_vecs_list
     bridge = CvBridge()
     try:
         cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
-        process_image(cv_image)
+        ids_list, distances_list, angles_list, marker_vecs_list = process_image(cv_image)
     except CvBridgeError as e:
         print(e)
 
 def pose_callback(msg):
-    global pose_list
+    global position_x_list, position_y_list, position_z_list, orientation_x_list, orientation_y_list, orientation_z_list, orientation_w_list
     pose_data = {
         'position': (msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z),
         'orientation': (msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w),
         'frame_id': msg.header.frame_id,
         'timestamp': msg.header.stamp.to_sec()
     }
-    pose_list.append(pose_data)
+    position_x_list.append(pose_data['position'][0])
+    #print(position_x_list)
+    position_y_list.append(pose_data['position'][1])
+    position_z_list.append(pose_data['position'][2])
+    orientation_x_list.append(pose_data['orientation'][0])
+    orientation_y_list.append(pose_data['orientation'][1])
+    orientation_z_list.append(pose_data['orientation'][2])
+    orientation_w_list.append(pose_data['orientation'][3])
 
-def vel_callback(msg):
-    global pose_list
-    if pose_list:
-        #print("Received Twist message:", msg)
-        vel_data = {
-            'linear_velocity': (msg.linear.x, msg.linear.y, msg.linear.z),
-            'angular_velocity': (msg.angular.x, msg.angular.y, msg.angular.z)
-        }
-        for key, value in vel_data.items():
-            pose_list[-1].setdefault(key, value)
+    return pose_data
 
 def process_pose():
-    global pose_list
-    #rospy.init_node('pose_extractor', anonymous=True)
+    global position_x_list, position_y_list, position_z_list, orientation_x_list, orientation_y_list, orientation_z_list, orientation_w_list
+    extracted_data = []
 
     # Load camera matrix and distortion coefficients
     cam_mat = np.load("/home/artur-ubunto/Desktop/SAut/arucos_tut/calib_data.npz")["camMatrix"]
     dist_coef = np.load("/home/artur-ubunto/Desktop/SAut/arucos_tut/calib_data.npz")["distCoef"]
 
-
-    while not rospy.is_shutdown():
-        if pose_list:
-            # Print pose data
-            for pose_data in pose_list:
-                print("Position:", pose_data['position'])
-                print("Orientation:", pose_data['orientation'])
-                print("Linear Velocity:", pose_data.get('linear_velocity', None))
-                print("Angular Velocity:", pose_data.get('angular_velocity', None))
-                print("Timestamp:", pose_data['timestamp'])
-                print("Frame ID:", pose_data['frame_id'])
-                print("---")
-            
-            # Clear the pose list after printing
-            pose_list = []
-
-        rospy.sleep(1)  # Print every second
 
 '''
 EKF SLAM demo
@@ -210,6 +200,7 @@ landmarks = [(4,4),
              (16,4),
              (12,4),
              (8,4)]
+## landmarks has to ba a vector that updates every time a new landmark is detected  
 
 n_landmarks = len(landmarks)
 
@@ -227,16 +218,18 @@ sigma = np.zeros((n_state+2*n_landmarks,n_state+2*n_landmarks)) # State uncertai
 mu[:] = np.nan # Initialize state estimate with nan values
 np.fill_diagonal(sigma,100) # Initialize state uncertainty with large variances, no correlations
 
+''' didnt really understood mu and sigma, maybe needs some change'''
+
 # ---> Helpful matrix
 Fx = np.block([[np.eye(3),np.zeros((n_state,2*n_landmarks))]]) # Used in both prediction and measurement updates
 
 # ---> Add to simulate oddometry_data
-def generate_odometry_data(real_movement, pos):
-    deltaD = random.gauss(np.linalg.norm(real_movement[:2]), O[0]) # Component related to the distance covered by the robot with noise
-    deltaO = random.gauss(real_movement[2], O[2]) # Component related to changing the robot's orientation with noise
-    return np.array([deltaD, deltaO])
+#def generate_odometry_data(real_movement, pos):
+#    deltaD = random.gauss(np.linalg.norm(real_movement[:2]), O[0]) # Component related to the distance covered by the robot with noise
+#    deltaO = random.gauss(real_movement[2], O[2]) # Component related to changing the robot's orientation with noise
+#    return np.array([deltaD, deltaO])
 
-    return np.array((deltaD * np.cos(odom[2]), deltaD * np.sin(odom[2]), deltaO))
+#    return np.array((deltaD * np.cos(odom[2]), deltaD * np.sin(odom[2]), deltaO))
 
 
 # ---> Measurement function
@@ -250,19 +243,25 @@ def sim_measurement(x,landmarks):
      - zs: list of 3-tuples, each (r,phi,lidx) of range (r) and relative bearing (phi) from robot to landmark,
            and lidx is the (known) correspondence landmark index.
     '''
+
+    ''' maybe this needs to be done diffently maybe because the landmarks is updated throw time and not already set '''
+
     rx, ry, rtheta = x[0], x[1], x[2]
     zs = [] # List of measurements
     for (lidx,landmark) in enumerate(landmarks): # Iterate over landmarks and indices
         lx,ly = landmark
         dist = np.linalg.norm(np.array([lx-rx,ly-ry])) # distance between robot and landmark
+        ''' distances_list[] '''
         phi = np.arctan2(ly-ry,lx-rx) - rtheta # angle between robot heading and landmark, relative to robot frame
+        ''' angles_list[] '''
         phi = np.arctan2(np.sin(phi),np.cos(phi)) # Keep phi bounded, -pi <= phi <= +pi
         if dist<robot_fov: # Only append if observation is within robot field of view
             zs.append((dist,phi,lidx))
+        ''' this wouldnt be needed '''
     return zs
 
 # ---> EKF SLAM steps
-def prediction_update(mu,sigma,odom,dt):
+def prediction_update(mu,sigma,odom):
     '''
     This function performs the prediction step of the EKF. Using the linearized motion model, it
     updates both the state estimate mu and the state uncertainty sigma based on the model and known
@@ -418,17 +417,15 @@ def show_uncertainty_ellipse(env,center,width,angle):
 
 # <------------------------- PLOTTING STUFF --------------------------------->
 
-def ros_thread():
-    
+
+
+if __name__ == '__main__':
+
+    rospy.init_node('image_processor', anonymous=True)
     rospy.Subscriber("/camera/rgb/image_color", Image, image_callback)
     rospy.Subscriber('/pose', Odometry, pose_callback)
-    rospy.Subscriber('/cmd_vel', Twist, vel_callback)
     process_pose()
-    rospy.spin()
-
-def ekf_slam_thread():
-
-    global mu, sigma
+    #rospy.spin()
 
     # Initialize pygame
     pygame.init()
@@ -436,7 +433,8 @@ def ekf_slam_thread():
     # Initialize robot and discretization time step
     x_init = np.array([1,1,np.pi/2]) # px, py, theta
     robot = vehicles.DifferentialDrive(x_init)
-    dt = 0.01
+    dt = 0.01 
+    ''' timestmaps ultimo - penultimo - comprimento do vetor-1'''
     i = 0
     # Initialize and display environment
     env = environment.Environment(map_image_path="./python_ugv_sim/maps/map_blank.png")
@@ -447,20 +445,37 @@ def ekf_slam_thread():
     sigma[0:3,0:3] = 0.1*np.eye(3)
     sigma[2,2] = 0 
     running = True
+    
     u = np.array([0.,0.]) # Controls: u[0] = forward velocity, u[1] = angular velocity
+
     while running:
         for event in pygame.event.get():
             if event.type==pygame.QUIT:
-                running = False
+                running = False            
             u = robot.update_u(u,event) if event.type==pygame.KEYUP or event.type==pygame.KEYDOWN else u # Update controls based on key states
 
         # Move the robot and give the real_movement, i.e, the movement did by the robot between two consevutive time intervals
-        odom = robot.move_step(u,dt) # Integrate EOMs forward, i.e., move robot
+        #odom = robot.move_step(u,dt) # Integrate EOMs forward, i.e., move robot
+        odom = [0, 0]
+        
+        odom[0] = np.sqrt( (position_x_list[len(position_x_list)-1]-position_x_list[len(position_x_list)-2]) **2 +  (position_y_list[len(position_y_list)-1]-position_y_list[len(position_y_list)-2]) **2)
+        odom[1] = ( np.arctan2(2*(orientation_w_list[-1]*orientation_z_list[-1] + orientation_x_list[-1]*orientation_y_list[-1]), 1 - 2*(orientation_y_list[-1]**2 + orientation_z_list[-1]**2)) )
+        ''' odom[0] - deltaD - sqrt( (position_x_list(len(position_x_list-1))-(position_x_list(len(position_x_list-2)))² +  msg.pose.pose.position.y(t)-msg.pose.pose.position.y(t-1))² )
+            odom[1] - delta0 - yaw = np.arctan2(2*(w*z + x*y), 1 - 2*(y**2 + z**2))
+                        'orientation': (msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
+                        Orientation: (0.0, 0.0, 0.754709580222772, 0.6560590289905073) 
+                    Convert quaternion to Euler angles (yaw, pitch, roll) with yaw angle we can track the robot's heading as it moves
+                    
+            u wouldnt be needed because it relates to velicity, for that reason it need to be integrated, but our outputs are refered to position
+        '''
 
-        # Get measurements
+        print(f"deltaD: {odom[0]}, deltaO: {odom[1]}, \n ---")
+        print(f"Arucos -> latest ids:{ids_list[-1]}, distance:{distances_list[-1]}, angle:{angles_list[-1]}, vector:{marker_vecs_list[-1]}, \n ---")
+
+        # Get measurementsw
         zs = sim_measurement(robot.get_pose(),landmarks) # Simulate measurements between robot and landmarks
         # EKF Slam Logic
-        mu, sigma = prediction_update(mu,sigma,odom,dt) # Perform EKF prediction update
+        mu, sigma = prediction_update(mu,sigma,odom) # Perform EKF prediction update
         mu, sigma = measurement_update(mu,sigma,zs) # Perform EKF measurement update
         # Plotting
         env.show_map() # Re-blit map
@@ -475,17 +490,3 @@ def ekf_slam_thread():
 
         pygame.display.update() # Update display
 
-if __name__ == '__main__':
-
-    rospy.init_node('image_processor', anonymous=True)
-    # Start ROS thread
-    ros_thread = threading.Thread(target=ros_thread)
-    ros_thread.start()
-
-    # Start EKF SLAM thread
-    ekf_slam_thread = threading.Thread(target=ekf_slam_thread)
-    ekf_slam_thread.start()
-
-    # Wait for both threads to finish
-    ros_thread.join()
-    ekf_slam_thread.join()

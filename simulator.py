@@ -282,6 +282,8 @@ if __name__ == '__main__':
         # Move the robot and give the real_movement, i.e, the movement did by the robot between two consevutive time intervals
         odom = robot.move_step(u,dt) # Integrate EOMs forward, i.e., move robot
 
+        print(odom[0], odom[1], "-----/n")
+
         # Get measurements
         zs = sim_measurement(robot.get_pose(),landmarks) # Simulate measurements between robot and landmarks
         # EKF Slam Logic
@@ -297,6 +299,7 @@ if __name__ == '__main__':
         # Show estimates of robot and landmarks (estimate and uncertainty)
         show_robot_estimate(mu,sigma,env)
         show_landmark_estimate(mu,sigma,env)
+
 
         pygame.display.update() # Update display
         

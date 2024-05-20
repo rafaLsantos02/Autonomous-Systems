@@ -93,7 +93,7 @@ def process_image(cv_image):
 
                 # Append data to lists
             ids_list.append(ids[0])
-                #ids_list = ids[0]
+                # ids_list = ids[0]
             distances_list.append(round(distance, 2))
             angles_list.append(np.degrees(angle))
             marker_vecs_list.append(np.round(marker_vec, decimals=2))
@@ -460,8 +460,8 @@ if __name__ == '__main__':
         
         odom[0] = np.sqrt( (position_x_list[len(position_x_list)-1]-position_x_list[len(position_x_list)-2]) **2 +  (position_y_list[len(position_y_list)-1]-position_y_list[len(position_y_list)-2]) **2)
         odom[1] = ( np.arctan2(2*(orientation_w_list[-1]*orientation_z_list[-1] + orientation_x_list[-1]*orientation_y_list[-1]), 1 - 2*(orientation_y_list[-1]**2 + orientation_z_list[-1]**2)) )
-        ''' odom[0] - deltaD - sqrt( (position_x_list(len(position_x_list-1))-(position_x_list(len(position_x_list-2)))² +  msg.pose.pose.position.y(t)-msg.pose.pose.position.y(t-1))² )
-            odom[1] - delta0 - yaw = np.arctan2(2*(w*z + x*y), 1 - 2*(y**2 + z**2))
+        ''' odom[0] = deltaD -> sqrt( (position_x_list(len(position_x_list-1))-(position_x_list(len(position_x_list-2)))² +  msg.pose.pose.position.y(t)-msg.pose.pose.position.y(t-1))² )
+            odom[1] = delta0 -> yaw = np.arctan2(2*(w*z + x*y), 1 - 2*(y**2 + z**2))
                         'orientation': (msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
                         Orientation: (0.0, 0.0, 0.754709580222772, 0.6560590289905073) 
                     Convert quaternion to Euler angles (yaw, pitch, roll) with yaw angle we can track the robot's heading as it moves

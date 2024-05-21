@@ -51,7 +51,7 @@ angles_list = [0]
 marker_vecs_list = [0]
 
 
-def process_image(cv_image):
+def process_image(cv_image): 
     global last_print_time
 
     gray_cv_image = cv.cvtColor(cv_image, cv.COLOR_BGR2GRAY)

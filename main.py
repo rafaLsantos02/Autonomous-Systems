@@ -105,12 +105,12 @@ def prediction_update(mu,sigma,u,dt):
     state_model_mat[2] = w*dt # Update for robot heading theta
     mu = mu + np.matmul(np.transpose(Fx),state_model_mat) # Update state estimate, simple use model with current state estimate
     
-    mu[2] =np.arctan2(np.sin(mu[2]),np.cos(mu[2])) # Keep the angle between -pi and +pi
+    mu[2] = np.arctan2(np.sin(mu[2]),np.cos(mu[2])) # Keep the angle between -pi and +pi
     
     # Update state uncertainty sigma
     state_jacobian = np.zeros((3,3)) # Initialize model jacobian
-    state_jacobian[0,2] = (v/w)*np.cos(theta) - (v/w)*np.cos(theta+w*dt) if w>0.01 else -v*np.sin(theta)*dt # Jacobian element, how small changes in robot theta affect robot x
-    state_jacobian[1,2] = (v/w)*np.sin(theta) - (v/w)*np.sin(theta+w*dt) if w>0.01 else v*np.cos(theta)*dt # Jacobian element, how small changes in robot theta affect robot y
+    state_jacobian[0,2] = -(v/w)*np.cos(theta) + (v/w)*np.cos(theta+w*dt) if w>0.01 else -v*np.sin(theta)*dt # Jacobian element, how small changes in robot theta affect robot x
+    state_jacobian[1,2] = -(v/w)*np.sin(theta) + (v/w)*np.sin(theta+w*dt) if w>0.01 else v*np.cos(theta)*dt # Jacobian element, how small changes in robot theta affect robot y
     G = np.eye(sigma.shape[0]) + np.transpose(Fx).dot(state_jacobian).dot(Fx) # How the model transforms uncertainty
     sigma = G.dot(sigma).dot(np.transpose(G)) + np.transpose(Fx).dot(R).dot(Fx) # Combine model effects and stochastic noise
     return mu,sigma

@@ -47,8 +47,8 @@ landmarks = [(4,4),
 n_landmarks = len(landmarks)
 
 # ---> Noise parameters
-R = np.diag([0.002,0.002,0.002]) # sigma_x, sigma_y, sigma_theta
-Q = np.diag([0.003,0.005]) # sigma_r, sigma_phi
+R = np.diag([0.002,0.002,0.0002]) # sigma_x, sigma_y, sigma_theta
+Q = np.diag([0.001,0.001]) # sigma_r, sigma_phi
 
 
 O = np.array([0.001, 0.001, 0.001]) # sigma_odom_x, sigma_odom_y, sigma_odom_theta #DUVIDA
@@ -67,8 +67,6 @@ Fx = np.block([[np.eye(3),np.zeros((n_state,2*n_landmarks))]]) # Used in both pr
 def generate_odometry_data(real_movement, pos):
     deltaD = random.gauss(np.linalg.norm(real_movement[:2]), O[0]) # Component related to the distance covered by the robot with noise
     deltaO = random.gauss(real_movement[2], O[2]) # Component related to changing the robot's orientation with noise
-    print(deltaD, deltaO)
-
     return np.array([deltaD, deltaO])
 
     return np.array((deltaD * np.cos(odom[2]), deltaD * np.sin(odom[2]), deltaO))
@@ -111,7 +109,7 @@ def prediction_update(mu,sigma,odom,dt):
      - mu: updated state estimate
      - sigma: updated state uncertainty
     '''
-    rx,py,theta = mu[0],mu[1],mu[2]
+    rx,py,theta = mu[0,0],mu[1,0],mu[2,0]
     deltaD,deltaO = odom[0], odom[1]
     # Update state estimate mu with model
     state_model_mat = np.zeros((n_state,1)) # Initialize state update matrix from model
@@ -120,7 +118,7 @@ def prediction_update(mu,sigma,odom,dt):
     state_model_mat[2] = deltaO # Update for robot heading theta
     mu = mu + np.matmul(np.transpose(Fx),state_model_mat) # Update state estimate, simple use model with current state estimate
     
-    mu[2] =np.arctan2(np.sin(mu[2]),np.cos(mu[2])) # Keep the angle between -pi and +pi
+    mu[2] = np.arctan2(np.sin(mu[2]),np.cos(mu[2])) # Keep the angle between -pi and +pi
 
     # Update state uncertainty sigma
     state_jacobian = np.zeros((3,3)) # Initialize model jacobian
@@ -281,14 +279,13 @@ if __name__ == '__main__':
 
         # Move the robot and give the real_movement, i.e, the movement did by the robot between two consevutive time intervals
         odom = robot.move_step(u,dt) # Integrate EOMs forward, i.e., move robot
-
-        print(odom[0], odom[1], "-----/n")
-
+        
         # Get measurements
         zs = sim_measurement(robot.get_pose(),landmarks) # Simulate measurements between robot and landmarks
         # EKF Slam Logic
         mu, sigma = prediction_update(mu,sigma,odom,dt) # Perform EKF prediction update
         mu, sigma = measurement_update(mu,sigma,zs) # Perform EKF measurement update
+
         # Plotting
         env.show_map() # Re-blit map
         # Show measurements
@@ -299,7 +296,6 @@ if __name__ == '__main__':
         # Show estimates of robot and landmarks (estimate and uncertainty)
         show_robot_estimate(mu,sigma,env)
         show_landmark_estimate(mu,sigma,env)
-
 
         pygame.display.update() # Update display
         

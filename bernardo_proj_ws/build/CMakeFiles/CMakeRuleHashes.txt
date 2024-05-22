@@ -1,0 +1,4 @@
+# Hashes of file build rules.
+bb5adca15cb379e8a1c53ef2f8e3acd1 /home/bernardo/Desktop/Autonomous-Systems/bernardo_proj_ws/devel/include/freenect_camera/FreenectConfig.h
+7c26f85f61a0cf1391ff1af5026344c7 CMakeFiles/clean_test_results
+995895d4efe0c0c331c30ffdc420774d freenect_stack/freenect_camera/CMakeFiles/freenect_camera_gencfg

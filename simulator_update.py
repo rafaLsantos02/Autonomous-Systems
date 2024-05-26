@@ -162,7 +162,6 @@ def measurement_update(mu,sigma,zs):
         if id_existence == 1:
             mu_landmark = mu[n_state+id_index*2:n_state+id_index*2+2]
         else:
-            print("Entrei aqui")
             mu_landmark[0] = rx + dist*np.cos(phi+theta) # lx, x position of landmark
             mu_landmark[1] = ry+ dist*np.sin(phi+theta) # ly, y position of landmark
             mu = np.block([[mu], [mu_landmark]]) # Attach the new landmark to the matrix mu
